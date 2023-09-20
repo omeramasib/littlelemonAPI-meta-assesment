@@ -6,4 +6,6 @@ urlpatterns = [
     path('users/', include('djoser.urls')),
     path('users/', include('djoser.urls.authtoken')),
     path('menu-items', views.MenuItemView.as_view()),
+    path('menu-items/<int:pk>', views.SingleMenuItemView.as_view()),
+    path('groups/manager/users', views.managers),
 ]
