@@ -22,11 +22,11 @@ class SingleMenuItemView(generics.RetrieveUpdateDestroyAPIView):
 
 @api_view(['POST', 'GET'])
 @permission_classes([IsAdminUser])
-def managers(request):
+def manageUserView(request):
     if request.method == 'GET':
         managers = Group.objects.get(name='Manager').user_set.all()
         return Response(UserSerializer(managers, many=True).data)
-    
+
     elif request.method == 'POST':
         username = request.data['username']
         user = get_object_or_404(User, username=username)
@@ -34,3 +34,39 @@ def managers(request):
         managers.user_set.add(user)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def deleteUserFromGroup(request, id):
+    user = get_object_or_404(User, id=id)
+    managers = Group.objects.get(name='Manager')
+    if user in managers.user_set.all():
+        managers.user_set.remove(user)
+        return Response(status=status.HTTP_200_OK, data={'message': 'Sucsses'})
+    else:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAdminUser])
+def manageDeliveryCrewView(request):
+    if request.method == 'GET':
+        managers = Group.objects.get(name='Delivery crew').user_set.all()
+        return Response(UserSerializer(managers, many=True).data)
+
+    elif request.method == 'POST':
+        username = request.data['username']
+        user = get_object_or_404(User, username=username)
+        managers = Group.objects.get(name='Delivery crew')
+        managers.user_set.add(user)
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def deleteUserFromDeliveryCrew(request, id):
+    user = get_object_or_404(User, id=id)
+    managers = Group.objects.get(name='Delivery crew')
+    if user in managers.user_set.all():
+        managers.user_set.remove(user)
+        return Response(status=status.HTTP_200_OK, data={'message': 'Sucsses'})
+    else:
+        return Response(status=status.HTTP_404_NOT_FOUND)
