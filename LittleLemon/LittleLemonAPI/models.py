@@ -10,6 +10,8 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, db_index=True)
     featured = models.BooleanField(db_index=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, default=1, db_constraint=False)
+    def __str__(self):
+        return str(self.title)
 
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -17,6 +19,8 @@ class Cart(models.Model):
     quantity = models.SmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     price = models.DecimalField(max_digits=6, decimal_places=2)
+    def __str__(self):
+        return str(self.user)
 
     class Meta:
         unique_together = ('menuitem', 'user')
@@ -27,7 +31,9 @@ class Order(models.Model):
     delivery_crew = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='delivery_crew', null=True)
     status = models.BooleanField(db_index=True, default=0)
     total = models.DecimalField(max_digits=6, decimal_places=2)
-    date = models.DateField(db_index=True)
+    date = models.DateField(db_index=True, auto_now_add=True)
+    def __str__(self):
+        return str(self.user)
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, default=1, db_constraint=False)
@@ -35,6 +41,8 @@ class OrderItem(models.Model):
     quantity = models.SmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     price = models.DecimalField(max_digits=6, decimal_places=2)
+    def __str__(self):
+        return str(self.order)
 
     class Meta:
         unique_together = ('order', 'menuitem')

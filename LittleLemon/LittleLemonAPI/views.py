@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import generics
-from .models import MenuItem
-from .serializers import MenuItemSerializer, UserSerializer
+from .models import MenuItem, Cart, Order
+from .serializers import MenuItemSerializer, UserSerializer, CartSerializer, OrderSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
 from rest_framework.response import Response
@@ -70,3 +70,41 @@ def deleteUserFromDeliveryCrew(request, id):
         return Response(status=status.HTTP_200_OK, data={'message': 'Sucsses'})
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
+
+class CartView(generics.ListCreateAPIView, generics.DestroyAPIView):
+    queryset = Cart.objects.all()
+    serializer_class = CartSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        cart = Cart.objects.filter(user=user)
+        return Response(CartSerializer(cart, many=True).data)
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        cart = Cart.objects.filter(user=user)
+        cart.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OrderView(generics.ListCreateAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        user = self.request.user
+        return Order.objects.filter(user=user)
+
+class OrderByIdView(generics.RetrieveAPIView):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        order = get_object_or_404(Order, id=kwargs['pk'])
+        if order.user == request.user:
+            return Response(OrderSerializer(order).data)
+        else:
+            return Response(status=status.HTTP_403_FORBIDDEN)
