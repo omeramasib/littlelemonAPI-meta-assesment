@@ -1,17 +1,19 @@
 from django.shortcuts import render
 from rest_framework import generics
-from .models import MenuItem, Cart, Order
-from .serializers import MenuItemSerializer, UserSerializer, CartSerializer, OrderSerializer
+from .models import MenuItem, Cart, Order, OrderItem
+from .serializers import MenuItemSerializer, UserSerializer, CartSerializer, OrderSerializer, OrderItemSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.models import User, Group
 from django.shortcuts import get_object_or_404
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 # Create your views here.
 class MenuItemView(generics.ListCreateAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
     permission_classes = (IsAuthenticated,)
 
 class SingleMenuItemView(generics.RetrieveUpdateDestroyAPIView):
@@ -75,6 +77,7 @@ class CartView(generics.ListCreateAPIView, generics.DestroyAPIView):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
     permission_classes = (IsAuthenticated,)
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -92,19 +95,78 @@ class OrderView(generics.ListCreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated,)
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
-    def get_queryset(self):
-        user = self.request.user
-        return Order.objects.filter(user=user)
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        manager = Group.objects.get(name='Manager')
+        delivery_crew = Group.objects.get(name='Delivery crew')
+        if user in manager.user_set.all():
+            orders = Order.objects.all()
+            return Response(OrderSerializer(orders, many=True).data)
+        elif user in delivery_crew.user_set.all():
+            orders = Order.objects.filter(delivery_crew=user).all()
+            return Response(OrderSerializer(orders, many=True).data)
+        else:
+            orders = Order.objects.filter(user=user)
+            return Response(OrderSerializer(orders, many=True).data)
 
-class OrderByIdView(generics.RetrieveAPIView):
+
+class SingleOrderView(generics.RetrieveAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated,)
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
 
     def get(self, request, *args, **kwargs):
-        order = get_object_or_404(Order, id=kwargs['pk'])
-        if order.user == request.user:
-            return Response(OrderSerializer(order).data)
+        order = self.get_object()
+        user = request.user
+        if order.user == user or user.groups.filter(name='Manager').exists():
+            serializer = self.get_serializer(order)
+            return Response(serializer.data)
         else:
             return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def put(self, request, *args, **kwargs):
+        order = self.get_object()
+        user = request.user
+        if order.user == user or user.groups.filter(name='Manager').exists():
+            serializer = self.get_serializer(order, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+    def patch(self, request, *args, **kwargs):
+        order = self.get_object()
+        user = request.user
+
+        if user.groups.filter(name='Delivery crew').exists():
+            if 'status' in request.data and len(request.data.keys()) == 1:
+                new_status = request.data.get('status')
+                order.status = new_status
+                order.save()
+                return Response(OrderSerializer(order).data)
+            else:
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
+        elif order.user == user or user.groups.filter(name='Manager').exists():
+            serializer = self.get_serializer(order, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+        else:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+
+    def delete(self, request, *args, **kwargs):
+        order = self.get_object()
+        if request.user.groups.filter(name='Manager').exists():
+            order.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+
