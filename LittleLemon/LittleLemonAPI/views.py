@@ -15,11 +15,15 @@ class MenuItemView(generics.ListCreateAPIView, generics.UpdateAPIView, generics.
     serializer_class = MenuItemSerializer
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
     permission_classes = (IsAuthenticated,)
+    ordering_fields=['price']
+    search_fields=['title','category__title']
 
 class SingleMenuItemView(generics.RetrieveUpdateDestroyAPIView):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
     permission_classes = (IsAuthenticated,)
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+
 
 
 @api_view(['POST', 'GET'])
@@ -78,6 +82,9 @@ class CartView(generics.ListCreateAPIView, generics.DestroyAPIView):
     serializer_class = CartSerializer
     permission_classes = (IsAuthenticated,)
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    ordering_fields=['price', 'quantity', 'unit_price']
+    search_fields=['menuitem__title']
+
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -96,6 +103,7 @@ class OrderView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated,)
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    ordering_fields=['total']
 
     def get(self, request, *args, **kwargs):
         user = request.user
